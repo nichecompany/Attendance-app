@@ -8,6 +8,24 @@ require('dotenv').config();
 
 // Initialize express app
 const app = express();
+const api = new ParseServer({
+  databaseURI: process.env.DATABASE_URI, // Your MongoDB URI from Back4App
+  appId: process.env.APP_ID, // Your Back4App App ID
+  masterKey: process.env.MASTER_KEY, // Your Back4App Master Key
+  serverURL: process.env.SERVER_URL, // Your Back4App Server URL
+  cloud: './cloud/main.js', // Path to your cloud code
+});
+
+
+app.use('/parse', api);
+
+// Health Check Route
+app.get('/', (req, res) => {
+  res.send('Working correct');
+});
+
+// Start Server
+const PORT = process.env.PORT || 1337;
 app.use(bodyParser.json());
 //! tokens
 // Middleware to verify JWT token
@@ -371,7 +389,6 @@ app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
 });
 
 // Start Server
-const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
