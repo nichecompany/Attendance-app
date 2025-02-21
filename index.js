@@ -6,12 +6,11 @@ const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
 require('dotenv').config();
 
-app.get('/', (req, res) => {
-  res.send('Working correct');
-});
+
 
 // Start Server
-const PORT = process.env.PORT || 1337;
+const PORT = process.env.PORT || 8000;
+const app = express(); 
 app.use(bodyParser.json());
 //! tokens
 // Middleware to verify JWT token
