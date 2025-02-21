@@ -6,20 +6,6 @@ const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
 require('dotenv').config();
 
-// Initialize express app
-const app = express();
-const api = new ParseServer({
-  databaseURI: process.env.DATABASE_URI, // Your MongoDB URI from Back4App
-  appId: process.env.APP_ID, // Your Back4App App ID
-  masterKey: process.env.MASTER_KEY, // Your Back4App Master Key
-  serverURL: process.env.SERVER_URL, // Your Back4App Server URL
-  cloud: './cloud/main.js', // Path to your cloud code
-});
-
-
-app.use('/parse', api);
-
-// Health Check Route
 app.get('/', (req, res) => {
   res.send('Working correct');
 });
