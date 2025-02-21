@@ -1,5 +1,6 @@
 // Import required packages
 const express = require('express');
+const app = express(); 
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -10,7 +11,7 @@ require('dotenv').config();
 
 // Start Server
 const PORT = process.env.PORT || 8000;
-const app = express(); 
+
 app.use(bodyParser.json());
 //! tokens
 // Middleware to verify JWT token
