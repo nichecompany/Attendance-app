@@ -18,7 +18,7 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.10.1",
-    "parse-server": "^4.10.20"
+    "parse-server": "^7.4.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"
