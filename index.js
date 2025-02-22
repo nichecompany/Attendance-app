@@ -67,7 +67,7 @@ const userSchema = new mongoose.Schema({
   department: { type: String, required: true } // New field for department
 });
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 // Register API
 // Register API (Updated with Token)
@@ -220,7 +220,7 @@ const attendanceSchema = new mongoose.Schema({
   ]
 });
 
-const Attendance = mongoose.model('Attendance', attendanceSchema);
+const Attendance = mongoose.models.Attendance || mongoose.model('Attendance', attendanceSchema);
 // Attendance API (Check-in/Check-out)
 app.post('/attendance', authenticateToken, async (req, res) => {
   try {
