@@ -292,12 +292,15 @@ app.post('/attendance', authenticateToken, async (req, res) => {
 // API to Get Attendance by User ID for Month and Year
 app.post('/attendance-summary', authenticateToken, async (req, res) => {
   try {
-    const { userId } = req.body;
-    const month = parseInt(req.headers['month']);
-    const year = parseInt(req.headers['year']);
+    const { userId, month: bodyMonth, year: bodyYear } = req.body;
 
-    if (!userId || !month || !year) {
-      return res.status(200).json({ status: false, message: 'User ID, month, and year are required.' });
+    // Default to current month and year if not provided
+    const currentDate = new Date();
+    const month = parseInt(bodyMonth || req.headers['month']) || currentDate.getMonth() + 1; // JavaScript months are 0-based
+    const year = parseInt(bodyYear || req.headers['year']) || currentDate.getFullYear();
+
+    if (!userId) {
+      return res.status(200).json({ status: false, message: 'User ID is required.' });
     }
 
     // Fetch attendance data for the specific month and year
@@ -330,6 +333,7 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
       });
     });
 
+    // Return the result
     res.status(200).json({
       status: true,
       message: 'Attendance retrieved successfully.',
@@ -341,6 +345,7 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
+
 // all users
 // Middleware to check if user is admin
 const verifyAdmin = (req, res, next) => {
