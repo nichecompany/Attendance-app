@@ -18,7 +18,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 const corsOptions = {
   origin: '*', // Allow all origins
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'month', 'year'],
 };
 
 app.use(cors(corsOptions));
@@ -67,7 +67,7 @@ const userSchema = new mongoose.Schema({
   department: { type: String, required: true } // New field for department
 });
 
-const User = mongoose.models.User || mongoose.model('User', userSchema);
+const User = mongoose.model('User', userSchema);
 
 // Register API
 // Register API (Updated with Token)
@@ -220,7 +220,7 @@ const attendanceSchema = new mongoose.Schema({
   ]
 });
 
-const Attendance = mongoose.models.Attendance || mongoose.model('Attendance', attendanceSchema);
+const Attendance = mongoose.model('Attendance', attendanceSchema);
 // Attendance API (Check-in/Check-out)
 app.post('/attendance', authenticateToken, async (req, res) => {
   try {
@@ -279,7 +279,7 @@ app.post('/attendance', authenticateToken, async (req, res) => {
 
       return res.status(200).json({
         status: true,
-        message: 'Check-out recorded successfully..',
+        message: 'Check-out recorded successfully.',
         time: currentDate.toISOString()
       });
     }
@@ -292,16 +292,10 @@ app.post('/attendance', authenticateToken, async (req, res) => {
 // API to Get Attendance by User ID for Month and Year
 app.post('/attendance-summary', authenticateToken, async (req, res) => {
   try {
-    const { userId, month: bodyMonth, year: bodyYear } = req.body;
+    const { userId, month, year } = req.body; // Extract directly from the body
 
-    // Get month and year from body or headers, or default to the current date
-    const currentDate = new Date();
-    const month = parseInt(bodyMonth || req.headers['month']) || (currentDate.getMonth() + 1); // JavaScript months are 0-based
-    const year = parseInt(bodyYear || req.headers['year']) || currentDate.getFullYear();
-
-    // Check if userId exists
-    if (!userId) {
-      return res.status(200).json({ status: false, message: 'User ID is required.' });
+    if (!userId || !month || !year) {
+      return res.status(200).json({ status: false, message: 'User ID, month, and year are required.' });
     }
 
     // Fetch attendance data for the specific month and year
@@ -334,7 +328,6 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
       });
     });
 
-    // Return the result
     res.status(200).json({
       status: true,
       message: 'Attendance retrieved successfully.',
@@ -346,7 +339,14 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
-
+// all users
+// Middleware to check if user is admin
+const verifyAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin') {
+    return res.status(200).json({ status: false, message: 'Access denied. Admins only.' });
+  }
+  next();
+};
 
 // API to get all users with total working hours of the current month
 app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
