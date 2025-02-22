@@ -293,8 +293,9 @@ app.post('/attendance', authenticateToken, async (req, res) => {
 app.post('/attendance-summary', authenticateToken, async (req, res) => {
   try {
     const { userId } = req.body;
-    const month = parseInt(req.headers['month']);
-    const year = parseInt(req.headers['year']);
+    const month = parseInt(req.body.month);
+    const year = parseInt(req.body.year);
+    
 
     if (!userId || !month || !year) {
       return res.status(200).json({ status: false, message: 'User ID, month, and year are required.' });
