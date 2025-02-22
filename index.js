@@ -410,6 +410,43 @@ app.get('/test', (req, res) => {
 app.get('/check-token', (req, res) => {
   res.send(`JWT_SECRET is: ${process.env.JWT_SECRET || 'Not set'}`);
 });
+// MongoDB Connection Status API
+app.get('/db-status', async (req, res) => {
+  try {
+    const connectionState = mongoose.connection.readyState;
+
+    let status = '';
+    switch (connectionState) {
+      case 0:
+        status = 'Disconnected';
+        break;
+      case 1:
+        status = 'Connected';
+        break;
+      case 2:
+        status = 'Connecting';
+        break;
+      case 3:
+        status = 'Disconnecting';
+        break;
+      default:
+        status = 'Unknown';
+        break;
+    }
+
+    res.status(200).json({
+      status: true,
+      message: `MongoDB connection status: ${status}`,
+    });
+  } catch (error) {
+    console.error('Database Status Error:', error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to retrieve database connection status',
+      error: error.message,
+    });
+  }
+});
 
 // Start Server
 app.listen(PORT, () => {
