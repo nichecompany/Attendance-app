@@ -397,6 +397,9 @@ app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
 app.get('/test', (req, res) => {
   res.send('working');
 });
+app.get('/check-token', (req, res) => {
+  res.send(`JWT_SECRET is: ${process.env.JWT_SECRET || 'Not set'}`);
+});
 
 // Start Server
 app.listen(PORT, () => {
