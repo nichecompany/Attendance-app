@@ -26,20 +26,23 @@ app.use(cors(corsOptions));
 // Middleware to verify JWT token
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Extract token from 'Bearer token'
+  const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
+    console.log("No token found");
     return res.status(401).json({ status: false, message: 'Access denied. No token provided.' });
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
+      console.log("Token verification failed", err);
       return res.status(403).json({ status: false, message: 'Invalid token.' });
     }
-    req.user = user; // Add decoded user info to request object
+    req.user = user;
     next();
   });
 };
+
 
 // MongoDB Connection
 mongoose.connect('mongodb+srv://Niche:niche_co_dev2025@cluster0.cobgn.mongodb.net/attendanceApp?retryWrites=true&w=majority&appName=Cluster0', {
@@ -63,9 +66,10 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model('User', userSchema);
 
 // Register API
+// Register API (Updated with Token)
 app.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role, position, department } = req.body; // Include position and department
+    const { name, email, password, role, position, department } = req.body;
     if (!name || !email || !password || !position || !department) {
       return res.status(200).json({ status: false, message: 'All fields are required' });
     }
@@ -80,17 +84,25 @@ app.post('/register', async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      role: role || 'user', // Use provided role, default to 'user'
+      role: role || 'user',
       position,
       department
     });
     await newUser.save();
 
-    res.status(201).json({ status: true, message: 'User registered successfully' });
+    // Generate token
+    const token = jwt.sign({ id: newUser._id, role: newUser.role }, process.env.JWT_SECRET, { expiresIn: '48h' });
+
+    res.status(201).json({
+      status: true,
+      message: 'User registered successfully',
+      token
+    });
   } catch (error) {
     res.status(200).json({ status: false, message: 'Server Error', error });
   }
 });
+
 
 // Login API
 app.post('/login', async (req, res) => {
@@ -111,7 +123,7 @@ app.post('/login', async (req, res) => {
       return res.status(400).json({ status: false, statusCode: 400, message: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '48h' });
     res.status(200).json({
       status: true,
       statusCode: 200,
