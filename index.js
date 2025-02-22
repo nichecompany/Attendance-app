@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
+const cors = require('cors');
 require('dotenv').config();
 
 
@@ -12,7 +13,9 @@ require('dotenv').config();
 // Start Server
 const PORT = process.env.PORT || 8000;
 
-app.use(bodyParser.json());
+app.use(express.json()); // Built-in body parser
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cors()); 
 //! tokens
 // Middleware to verify JWT token
 const authenticateToken = (req, res, next) => {
