@@ -373,7 +373,7 @@ app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
     res.status(500).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
-app.get('/', (req, res) => {
+app.get('/test', (req, res) => {
   res.send('working');
 });
 
