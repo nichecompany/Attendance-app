@@ -32,13 +32,13 @@ const authenticateToken = (req, res, next) => {
 
   if (!token) {
     console.log("No token found");
-    return res.status(401).json({ status: false, message: 'Access denied. No token provided.' });
+    return res.status(200).json({ status: false, message: 'Access denied. No token provided.' });
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
       console.log("Token verification failed", err);
-      return res.status(403).json({ status: false, message: 'Invalid token.' });
+      return res.status(200).json({ status: false, message: 'Invalid token.' });
     }
     req.user = user;
     console.log("Token valid, User:", user); // Debug
@@ -74,15 +74,19 @@ const User = mongoose.model('User', userSchema);
 app.post('/register', async (req, res) => {
   try {
     const { name, email, password, role, position, department } = req.body;
+
+    // Validate required fields
     if (!name || !email || !password || !position || !department) {
       return res.status(200).json({ status: false, message: 'All fields are required' });
     }
 
+    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(200).json({ status: false, message: 'User already exists' });
     }
 
+    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({
       name,
@@ -92,20 +96,22 @@ app.post('/register', async (req, res) => {
       position,
       department
     });
+
+    // Save the new user to the database
     await newUser.save();
 
-    // Generate token
-    const token = jwt.sign({ id: newUser._id, role: newUser.role }, process.env.JWT_SECRET, { expiresIn: '48h' });
-
+    // Respond without generating a token
     res.status(201).json({
       status: true,
-      message: 'User registered successfully',
-      token
+      message: 'User registered successfully'
     });
+
   } catch (error) {
-    res.status(200).json({ status: false, message: 'Server Error', error });
+    console.error('Registration Error:', error);
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
+
 
 
 // Login API
@@ -114,17 +120,17 @@ app.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ status: false, statusCode: 400, message: 'Email and password are required' });
+      return res.status(200).json({ status: false, statusCode: 200, message: 'Email and password are required' });
     }
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ status: false, statusCode: 400, message: 'User not found' });
+      return res.status(200).json({ status: false, statusCode: 200, message: 'User not found' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ status: false, statusCode: 400, message: 'Invalid credentials' });
+      return res.status(200).json({ status: false, statusCode: 200, message: 'Invalid credentials' });
     }
 
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '48h' });
@@ -153,7 +159,7 @@ app.post('/change-password', authenticateToken, async (req, res) => {
     const { oldPassword, newPassword } = req.body;
 
     if (!oldPassword || !newPassword) {
-      return res.status(400).json({ status: false, message: 'Old and new passwords are required.' });
+      return res.status(200).json({ status: false, message: 'Old and new passwords are required.' });
     }
 
     // Find the user using the ID from the decoded token
@@ -165,7 +171,7 @@ app.post('/change-password', authenticateToken, async (req, res) => {
     // Verify the old password
     const isMatch = await bcrypt.compare(oldPassword, user.password);
     if (!isMatch) {
-      return res.status(400).json({ status: false, message: 'Old password is incorrect.' });
+      return res.status(200).json({ status: false, message: 'Old password is incorrect.' });
     }
 
     // Hash the new password and update it
@@ -221,7 +227,7 @@ app.post('/attendance', authenticateToken, async (req, res) => {
     const { attendanceStatus } = req.body;
 
     if (!attendanceStatus || !['check-in', 'check-out'].includes(attendanceStatus.toLowerCase())) {
-      return res.status(400).json({ status: false, message: 'Invalid attendance status. Use "check-in" or "check-out".' });
+      return res.status(200).json({ status: false, message: 'Invalid attendance status. Use "check-in" or "check-out".' });
     }
 
     const userId = req.user.id;
@@ -241,7 +247,7 @@ app.post('/attendance', authenticateToken, async (req, res) => {
         attendance.records.length > 0 &&
         !attendance.records[attendance.records.length - 1].checkOut
       ) {
-        return res.status(400).json({
+        return res.status(200).json({
           status: false,
           message: 'You are still checked-in. Please check out before checking in again.',
           time: currentDate.toISOString()
@@ -260,7 +266,7 @@ app.post('/attendance', authenticateToken, async (req, res) => {
     } else {
       // Prevent check-out without a prior check-in
       if (attendance.records.length === 0 || attendance.records[attendance.records.length - 1].checkOut) {
-        return res.status(400).json({
+        return res.status(200).json({
           status: false,
           message: 'You must check-in before checking out.',
           time: currentDate.toISOString()
@@ -291,7 +297,7 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
     const year = parseInt(req.headers['year']);
 
     if (!userId || !month || !year) {
-      return res.status(400).json({ status: false, message: 'User ID, month, and year are required.' });
+      return res.status(200).json({ status: false, message: 'User ID, month, and year are required.' });
     }
 
     // Fetch attendance data for the specific month and year
