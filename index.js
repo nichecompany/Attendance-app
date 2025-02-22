@@ -434,7 +434,46 @@ app.post('/delete-user', authenticateToken, verifyAdmin, async (req, res) => {
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
-// TODO tasks :
+// TODO role :
+app.post('/change-role', authenticateToken, verifyAdmin, async (req, res) => {
+  try {
+    const { userId, newRole } = req.body;
+
+    // Validate input
+    if (!userId || !newRole) {
+      return res.status(400).json({ status: false, message: 'User ID and new role are required.' });
+    }
+
+    // Ensure the role is either 'admin' or 'user'
+    if (!['admin', 'user'].includes(newRole)) {
+      return res.status(400).json({ status: false, message: 'Invalid role. Use "admin" or "user".' });
+    }
+
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ status: false, message: 'User not found.' });
+    }
+
+    // Prevent self-role change (Optional: Admins cannot change their own role)
+    if (userId === req.user.id) {
+      return res.status(403).json({ status: false, message: 'You cannot change your own role.' });
+    }
+
+    // Update role
+    user.role = newRole;
+    await user.save();
+
+    res.status(200).json({
+      status: true,
+      message: `User ${user.name} role updated to ${newRole} successfully.`,
+    });
+
+  } catch (error) {
+    console.error('Change Role Error:', error);
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
 
 
 //! testing the server
