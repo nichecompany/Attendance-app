@@ -18,7 +18,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 const corsOptions = {
   origin: '*', // Allow all origins
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'month', 'year'],
 };
 
 app.use(cors(corsOptions));
@@ -293,9 +293,8 @@ app.post('/attendance', authenticateToken, async (req, res) => {
 app.post('/attendance-summary', authenticateToken, async (req, res) => {
   try {
     const { userId } = req.body;
-    const month = parseInt(req.body.month);
-    const year = parseInt(req.body.year);
-    
+    const month = parseInt(req.headers['month']);
+    const year = parseInt(req.headers['year']);
 
     if (!userId || !month || !year) {
       return res.status(200).json({ status: false, message: 'User ID, month, and year are required.' });
