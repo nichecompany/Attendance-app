@@ -28,20 +28,24 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
+  console.log("Received Token:", token); // Debugging token
+
   if (!token) {
     console.log("No token found");
-    return res.status(200).json({ status: false, message: 'Access denied. No token provided.' });
+    return res.status(401).json({ status: false, message: 'Access denied. No token provided.' });
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
       console.log("Token verification failed", err);
-      return res.status(200).json({ status: false, message: 'Invalid token.' });
+      return res.status(403).json({ status: false, message: 'Invalid token.' });
     }
     req.user = user;
+    console.log("Token valid, User:", user); // Debug
     next();
   });
 };
+
 
 
 // MongoDB Connection
