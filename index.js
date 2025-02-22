@@ -18,7 +18,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 const corsOptions = {
   origin: '*', // Allow all origins
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'month', 'year'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 app.use(cors(corsOptions));
@@ -294,11 +294,12 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
   try {
     const { userId, month: bodyMonth, year: bodyYear } = req.body;
 
-    // Default to current month and year if not provided
+    // Get month and year from body or headers, or default to the current date
     const currentDate = new Date();
-    const month = parseInt(bodyMonth || req.headers['month']) || currentDate.getMonth() + 1; // JavaScript months are 0-based
+    const month = parseInt(bodyMonth || req.headers['month']) || (currentDate.getMonth() + 1); // JavaScript months are 0-based
     const year = parseInt(bodyYear || req.headers['year']) || currentDate.getFullYear();
 
+    // Check if userId exists
     if (!userId) {
       return res.status(200).json({ status: false, message: 'User ID is required.' });
     }
@@ -346,14 +347,6 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
   }
 });
 
-// all users
-// Middleware to check if user is admin
-const verifyAdmin = (req, res, next) => {
-  if (req.user.role !== 'admin') {
-    return res.status(200).json({ status: false, message: 'Access denied. Admins only.' });
-  }
-  next();
-};
 
 // API to get all users with total working hours of the current month
 app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
