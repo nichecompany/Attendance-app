@@ -133,7 +133,7 @@ app.post('/login', async (req, res) => {
       return res.status(200).json({ status: false, statusCode: 200, message: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '48h' });
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1y' });
     res.status(200).json({
       status: true,
       statusCode: 200,
