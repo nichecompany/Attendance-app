@@ -279,7 +279,7 @@ app.post('/attendance', authenticateToken, async (req, res) => {
 
       return res.status(200).json({
         status: true,
-        message: 'Check-out recorded successfully.',
+        message: 'Check-out recorded successfully..',
         time: currentDate.toISOString()
       });
     }
