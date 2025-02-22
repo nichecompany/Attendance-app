@@ -15,7 +15,13 @@ const PORT = process.env.PORT || 8000;
 
 app.use(express.json()); // Built-in body parser
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(cors()); 
+const corsOptions = {
+  origin: '*', // Allow all origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 //! tokens
 // Middleware to verify JWT token
 const authenticateToken = (req, res, next) => {
