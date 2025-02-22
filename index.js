@@ -402,6 +402,42 @@ app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
+// TODO delete the user 
+// Delete User API (Admin Only)
+app.post('/delete-user', authenticateToken, verifyAdmin, async (req, res) => {
+  try {
+    const { userId } = req.body; // Get user ID from request body
+
+    if (!userId) {
+      return res.status(200).json({ status: false, message: 'User ID is required.' });
+    }
+
+    // Check if the user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(200).json({ status: false, message: 'User not found.' });
+    }
+
+    // Delete the user from the database
+    await User.findByIdAndDelete(userId);
+
+    // Delete all attendance records related to the user
+    await Attendance.deleteMany({ userId });
+
+    res.status(200).json({
+      status: true,
+      message: `User ${user.name} and all related data have been deleted successfully.`,
+    });
+
+  } catch (error) {
+    console.error('Delete User Error:', error);
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
+// TODO tasks :
+
+
+//! testing the server
 app.get('/test', (req, res) => {
   res.send('working');
 });
