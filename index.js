@@ -30,13 +30,13 @@ const authenticateToken = (req, res, next) => {
 
   if (!token) {
     console.log("No token found");
-    return res.status(401).json({ status: false, message: 'Access denied. No token provided.' });
+    return res.status(200).json({ status: false, message: 'Access denied. No token provided.' });
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
       console.log("Token verification failed", err);
-      return res.status(403).json({ status: false, message: 'Invalid token.' });
+      return res.status(200).json({ status: false, message: 'Invalid token.' });
     }
     req.user = user;
     next();
@@ -139,7 +139,7 @@ app.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Login Error:', error); // Log detailed error in console
-    res.status(500).json({ status: false, statusCode: 500, message: 'Server Error', error: error.message });
+    res.status(200).json({ status: false, statusCode: 200, message: 'Server Error', error: error.message });
   }
 });
 
@@ -155,7 +155,7 @@ app.post('/change-password', authenticateToken, async (req, res) => {
     // Find the user using the ID from the decoded token
     const user = await User.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ status: false, message: 'User not found.' });
+      return res.status(200).json({ status: false, message: 'User not found.' });
     }
 
     // Verify the old password
@@ -172,7 +172,7 @@ app.post('/change-password', authenticateToken, async (req, res) => {
     res.status(200).json({ status: true, message: 'Password updated successfully.' });
   } catch (error) {
     console.error('Change Password Error:', error);
-    res.status(500).json({ status: false, message: 'Server Error', error: error.message });
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
 // get profile 
@@ -183,7 +183,7 @@ app.get('/profile', authenticateToken, async (req, res) => {
     const user = await User.findById(req.user.id).select('-password'); // Exclude the password
 
     if (!user) {
-      return res.status(404).json({ status: false, message: 'User not found.' });
+      return res.status(200).json({ status: false, message: 'User not found.' });
     }
 
     res.status(200).json({
@@ -193,7 +193,7 @@ app.get('/profile', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Get Profile Error:', error);
-    res.status(500).json({ status: false, message: 'Server Error', error: error.message });
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
 
@@ -275,7 +275,7 @@ app.post('/attendance', authenticateToken, async (req, res) => {
     }
   } catch (error) {
     console.error('Attendance Error:', error);
-    res.status(500).json({ status: false, message: 'Server Error', error: error.message });
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
 
@@ -328,14 +328,14 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Attendance Summary Error:', error);
-    res.status(500).json({ status: false, message: 'Server Error', error: error.message });
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
 // all users
 // Middleware to check if user is admin
 const verifyAdmin = (req, res, next) => {
   if (req.user.role !== 'admin') {
-    return res.status(403).json({ status: false, message: 'Access denied. Admins only.' });
+    return res.status(200).json({ status: false, message: 'Access denied. Admins only.' });
   }
   next();
 };
@@ -391,7 +391,7 @@ app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Get Users Error:', error);
-    res.status(500).json({ status: false, message: 'Server Error', error: error.message });
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
 app.get('/test', (req, res) => {
