@@ -303,13 +303,16 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
     let totalHours = 0;
     const detailedRecords = {};
 
+    // Sort attendance records by date in descending order
+    attendanceRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+
     attendanceRecords.forEach(record => {
-      const dateStr = record.date.toISOString().split('T')[0];
+      const dateStr = record.date.toISOString().split('T')[0]; // Format date as YYYY-MM-DD
       detailedRecords[dateStr] = [];
 
       record.records.forEach(session => {
         if (session.checkIn && session.checkOut) {
-          const hoursWorked = (new Date(session.checkOut) - new Date(session.checkIn)) / (1000 * 60 * 60);
+          const hoursWorked = (new Date(session.checkOut) - new Date(session.checkIn)) / (1000 * 60 * 60); // Calculate hours
           totalHours += hoursWorked;
 
           detailedRecords[dateStr].push({
@@ -333,6 +336,7 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
+
 // delete attendance 
 // Delete Specific Attendance Session API
 app.post('/delete-attendance-session', authenticateToken, async (req, res) => {
