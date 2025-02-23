@@ -215,7 +215,8 @@ const attendanceSchema = new mongoose.Schema({
   records: [
     {
       checkIn: { type: Date },
-      checkOut: { type: Date }
+      checkOut: { type: Date },
+      note: { type: String, default: ' ' } // Default empty string for note
     }
   ]
 });
@@ -224,7 +225,7 @@ const Attendance = mongoose.model('Attendance', attendanceSchema);
 // Attendance API (Check-in/Check-out)
 app.post('/attendance', authenticateToken, async (req, res) => {
   try {
-    const { attendanceStatus } = req.body;
+    const { attendanceStatus, note } = req.body;
 
     if (!attendanceStatus || !['check-in', 'check-out'].includes(attendanceStatus.toLowerCase())) {
       return res.status(200).json({ status: false, message: 'Invalid attendance status. Use "check-in" or "check-out".' });
@@ -232,29 +233,22 @@ app.post('/attendance', authenticateToken, async (req, res) => {
 
     const userId = req.user.id;
     const currentDate = new Date();
-    const dateOnly = new Date(currentDate.toDateString()); // Normalize to remove time
+    const dateOnly = new Date(currentDate.toDateString());
 
     let attendance = await Attendance.findOne({ userId, date: dateOnly });
 
-    // If no attendance record exists for today, create one
     if (!attendance) {
       attendance = new Attendance({ userId, date: dateOnly, records: [] });
     }
 
     if (attendanceStatus.toLowerCase() === 'check-in') {
-      // Prevent multiple consecutive check-ins without a check-out
-      if (
-        attendance.records.length > 0 &&
-        !attendance.records[attendance.records.length - 1].checkOut
-      ) {
+      if (attendance.records.length > 0 && !attendance.records[attendance.records.length - 1].checkOut) {
         return res.status(200).json({
           status: false,
           message: 'You are still checked-in. Please check out before checking in again.',
           time: currentDate.toISOString()
         });
       }
-
-      // Add a new check-in record
       attendance.records.push({ checkIn: currentDate });
       await attendance.save();
 
@@ -264,7 +258,9 @@ app.post('/attendance', authenticateToken, async (req, res) => {
         time: currentDate.toISOString()
       });
     } else {
-      // Prevent check-out without a prior check-in
+      if (!note || note.trim() === '') {
+        return res.status(200).json({ status: false, message: 'Note is required for check-out.' });
+      }
       if (attendance.records.length === 0 || attendance.records[attendance.records.length - 1].checkOut) {
         return res.status(200).json({
           status: false,
@@ -272,9 +268,8 @@ app.post('/attendance', authenticateToken, async (req, res) => {
           time: currentDate.toISOString()
         });
       }
-
-      // Add a check-out time to the latest check-in record
       attendance.records[attendance.records.length - 1].checkOut = currentDate;
+      attendance.records[attendance.records.length - 1].note = note;
       await attendance.save();
 
       return res.status(200).json({
@@ -288,17 +283,15 @@ app.post('/attendance', authenticateToken, async (req, res) => {
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
-
 // API to Get Attendance by User ID for Month and Year
 app.post('/attendance-summary', authenticateToken, async (req, res) => {
   try {
-    const { userId, month, year } = req.body; // Extract directly from the body
+    const { userId, month, year } = req.body;
 
     if (!userId || !month || !year) {
       return res.status(200).json({ status: false, message: 'User ID, month, and year are required.' });
     }
 
-    // Fetch attendance data for the specific month and year
     const attendanceRecords = await Attendance.find({
       userId,
       date: {
@@ -311,18 +304,19 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
     const detailedRecords = {};
 
     attendanceRecords.forEach(record => {
-      const dateStr = record.date.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+      const dateStr = record.date.toISOString().split('T')[0];
       detailedRecords[dateStr] = [];
 
       record.records.forEach(session => {
         if (session.checkIn && session.checkOut) {
-          const hoursWorked = (new Date(session.checkOut) - new Date(session.checkIn)) / (1000 * 60 * 60); // Convert ms to hours
+          const hoursWorked = (new Date(session.checkOut) - new Date(session.checkIn)) / (1000 * 60 * 60);
           totalHours += hoursWorked;
 
           detailedRecords[dateStr].push({
             checkIn: session.checkIn,
             checkOut: session.checkOut,
-            duration: hoursWorked.toFixed(2) + ' hours'
+            duration: hoursWorked.toFixed(2) + ' hours',
+            note: session.note || ' '
           });
         }
       });
@@ -339,6 +333,54 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
+// delete attendance 
+// Delete Specific Attendance Session API
+app.post('/delete-attendance-session', authenticateToken, async (req, res) => {
+  try {
+    const { checkIn, checkOut } = req.body;
+
+    // Validate required fields
+    if (!checkIn || !checkOut) {
+      return res.status(200).json({ status: false, message: 'Both checkIn and checkOut timestamps are required.' });
+    }
+
+    const userId = req.user.id;
+
+    // Find the attendance record containing the specified session
+    const attendanceRecord = await Attendance.findOne({
+      userId,
+      'records.checkIn': new Date(checkIn),
+      'records.checkOut': new Date(checkOut)
+    });
+
+    if (!attendanceRecord) {
+      return res.status(200).json({ status: false, message: 'Attendance session not found.' });
+    }
+
+    // Filter out the session to be deleted
+    attendanceRecord.records = attendanceRecord.records.filter(session => {
+      return !(session.checkIn.getTime() === new Date(checkIn).getTime() && session.checkOut.getTime() === new Date(checkOut).getTime());
+    });
+
+    // If no records are left for the day, delete the entire attendance document
+    if (attendanceRecord.records.length === 0) {
+      await Attendance.findByIdAndDelete(attendanceRecord._id);
+    } else {
+      // Save the updated attendance record
+      await attendanceRecord.save();
+    }
+
+    res.status(200).json({
+      status: true,
+      message: 'Attendance session deleted successfully.'
+    });
+  } catch (error) {
+    console.error('Delete Attendance Session Error:', error);
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
+// add time attendance 
+
 // all users
 // Middleware to check if user is admin
 const verifyAdmin = (req, res, next) => {
@@ -347,6 +389,182 @@ const verifyAdmin = (req, res, next) => {
   }
   next();
 };
+// 
+app.post('/add-attendance-session', authenticateToken, async (req, res) => {
+  try {
+    const { checkIn, checkOut, note } = req.body;
+
+    // Validate input fields
+    if (!checkIn || !checkOut || !note) {
+      return res.status(200).json({ status: false, message: 'Check-in, check-out, and note are required.' });
+    }
+
+    const userId = req.user.id;
+    const dateOnly = new Date(new Date(checkIn).toDateString());
+
+    // Find or create attendance record for the given date
+    let attendanceRecord = await Attendance.findOne({ userId, date: dateOnly });
+
+    if (!attendanceRecord) {
+      attendanceRecord = new Attendance({ userId, date: dateOnly, records: [] });
+    }
+
+    // Add the manually created session
+    attendanceRecord.records.push({
+      checkIn: new Date(checkIn),
+      checkOut: new Date(checkOut),
+      note: `Manually by user: ${note}`
+    });
+
+    await attendanceRecord.save();
+
+    res.status(200).json({
+      status: true,
+      message: 'Attendance session added manually successfully.'
+    });
+  } catch (error) {
+    console.error('Add Attendance Session Error:', error);
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
+// tasks :
+// Task Management Schema
+const taskSchema = new mongoose.Schema({
+  taskName: { type: String, required: true },
+  description: { type: String, required: true },
+  deadline: { type: Date, required: true },
+  createdAt: { type: Date, default: Date.now },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  assignedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  achievedBy: [{
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    achievedAt: { type: Date }
+  }],
+  notes: [{
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    note: { type: String },
+    timeAdded: { type: Date, default: Date.now }
+  }]
+});
+
+const Task = mongoose.model('Task', taskSchema);
+
+// 1. Add Task API
+app.post('/add-task', authenticateToken, async (req, res) => {
+  try {
+    const { taskName, description, deadline, assignedTo } = req.body;
+
+    if (!taskName || !description || !deadline || !assignedTo || assignedTo.length === 0) {
+      return res.status(200).json({ status: false, message: 'All fields are required and at least one user must be assigned.' });
+    }
+
+    const newTask = new Task({
+      taskName,
+      description,
+      deadline: new Date(deadline),
+      createdBy: req.user.id,
+      assignedTo
+    });
+
+    await newTask.save();
+
+    res.status(201).json({ status: true, message: 'Task created successfully.' });
+  } catch (error) {
+    console.error('Add Task Error:', error);
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
+
+// 2. Achieve Task API
+app.post('/achieve-task', authenticateToken, async (req, res) => {
+  try {
+    const { taskId } = req.body;
+    const userId = req.user.id;
+
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return res.status(200).json({ status: false, message: 'Task not found.' });
+    }
+
+    if (!task.assignedTo.includes(userId)) {
+      return res.status(200).json({ status: false, message: 'You are not assigned to this task.' });
+    }
+
+    task.achievedBy.push({ userId, achievedAt: new Date() });
+    await task.save();
+
+    res.status(200).json({ status: true, message: 'Task marked as achieved.' });
+  } catch (error) {
+    console.error('Achieve Task Error:', error);
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
+
+// 3. Delete Task API
+app.post('/delete-task', authenticateToken, async (req, res) => {
+  try {
+    const { taskId } = req.body;
+    const task = await Task.findByIdAndDelete(taskId);
+    if (!task) {
+      return res.status(200).json({ status: false, message: 'Task not found.' });
+    }
+
+    res.status(200).json({ status: true, message: 'Task deleted successfully.' });
+  } catch (error) {
+    console.error('Delete Task Error:', error);
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
+
+// 4. Add Note to Task API
+app.post('/add-task-note', authenticateToken, async (req, res) => {
+  try {
+    const { taskId, note } = req.body;
+
+    if (!taskId || !note) {
+      return res.status(200).json({ status: false, message: 'Task ID and note are required.' });
+    }
+
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return res.status(200).json({ status: false, message: 'Task not found.' });
+    }
+
+    task.notes.push({ userId: req.user.id, note, timeAdded: new Date() });
+    await task.save();
+
+    res.status(200).json({ status: true, message: 'Note added to task successfully.' });
+  } catch (error) {
+    console.error('Add Task Note Error:', error);
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
+
+// 5. Fetch Pending Tasks API
+app.get('/pending-tasks', authenticateToken, async (req, res) => {
+  try {
+    const tasks = await Task.find({
+      'achievedBy.userId': { $ne: req.user.id }
+    });
+
+    res.status(200).json({ status: true, message: 'Pending tasks fetched successfully.', tasks });
+  } catch (error) {
+    console.error('Fetch Pending Tasks Error:', error);
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
+
+// 6. Fetch Achieved Tasks API
+app.get('/achieved-tasks', authenticateToken, async (req, res) => {
+  try {
+    const tasks = await Task.find({ 'achievedBy.userId': req.user.id });
+
+    res.status(200).json({ status: true, message: 'Achieved tasks fetched successfully.', tasks });
+  } catch (error) {
+    console.error('Fetch Achieved Tasks Error:', error);
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
 
 // API to get all users with total working hours of the current month
 app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
