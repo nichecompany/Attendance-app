@@ -57,8 +57,7 @@ mongoose.connect('mongodb+srv://Niche:niche_co_dev2025@cluster0.cobgn.mongodb.ne
 .catch(err => console.error('MongoDB connection error:', err));
 
 // User Schema
-// User Schema
-// Updated User Schema
+
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -109,7 +108,6 @@ app.post('/register', async (req, res) => {
   }
 });
 
-const Attendance = require('./models/Attendance'); // Example model (replace with actual database logic)
 
 app.post('/check-hours', async (req, res) => {
   try {
@@ -124,20 +122,42 @@ app.post('/check-hours', async (req, res) => {
       return res.status(404).json({ status: false, message: 'User not found' });
     }
 
-    // Fetch recorded hours from attendance database (adjust this query based on your schema)
-    const attendanceRecord = await Attendance.findOne({ userId });
+    // Get the current month and year
+    const currentDate = new Date();
+    const month = currentDate.getMonth(); // 0-based index (0 = January)
+    const year = currentDate.getFullYear();
 
-    let recordedHours = attendanceRecord ? attendanceRecord.monthly_hours : 0; // Use real recorded hours
+    // Fetch attendance records for the current month
+    const attendanceRecords = await Attendance.find({
+      userId,
+      date: {
+        $gte: new Date(year, month, 1),  // Start of the month
+        $lt: new Date(year, month + 1, 1) // Start of next month
+      }
+    });
+
+    let totalRecordedHours = 0;
+
+    // Sum up all recorded hours
+    attendanceRecords.forEach(record => {
+      record.records.forEach(session => {
+        if (session.checkIn && session.checkOut) {
+          const hoursWorked = (new Date(session.checkOut) - new Date(session.checkIn)) / (1000 * 60 * 60); // Convert ms to hours
+          totalRecordedHours += hoursWorked;
+        }
+      });
+    });
+
     const savedHours = user.hours ? parseFloat(user.hours) : null;
 
     let responseString;
     let redFlag = true;
 
     if (savedHours === null) {
-      responseString = `${recordedHours}/unlimited`;
+      responseString = `${totalRecordedHours.toFixed(2)}/unlimited`;
     } else {
-      responseString = `${recordedHours}/${savedHours}`;
-      redFlag = recordedHours < savedHours;
+      responseString = `${totalRecordedHours.toFixed(2)}/${savedHours}`;
+      redFlag = totalRecordedHours < savedHours;
     }
 
     res.status(200).json({
@@ -151,6 +171,7 @@ app.post('/check-hours', async (req, res) => {
     res.status(500).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
+
 
 
 // Login API
