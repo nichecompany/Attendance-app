@@ -58,35 +58,33 @@ mongoose.connect('mongodb+srv://Niche:niche_co_dev2025@cluster0.cobgn.mongodb.ne
 
 // User Schema
 // User Schema
+// Updated User Schema
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
-  position: { type: String, required: true },  // New field for position
-  department: { type: String, required: true } // New field for department
+  position: { type: String, required: true },
+  department: { type: String, required: true },
+  hours: { type: String, default: null }  // New field for monthly hour limit (as a string)
 });
 
 const User = mongoose.model('User', userSchema);
 
-// Register API
-// Register API (Updated with Token)
+// Register API (Updated with Hours Field)
 app.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role, position, department } = req.body;
+    const { name, email, password, role, position, department, hours } = req.body;
 
-    // Validate required fields
     if (!name || !email || !password || !position || !department) {
       return res.status(200).json({ status: false, message: 'All fields are required' });
     }
 
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(200).json({ status: false, message: 'User already exists' });
     }
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({
       name,
@@ -94,13 +92,12 @@ app.post('/register', async (req, res) => {
       password: hashedPassword,
       role: role || 'user',
       position,
-      department
+      department,
+      hours: hours || null  // Optional field
     });
 
-    // Save the new user to the database
     await newUser.save();
 
-    // Respond without generating a token
     res.status(201).json({
       status: true,
       message: 'User registered successfully'
@@ -109,6 +106,46 @@ app.post('/register', async (req, res) => {
   } catch (error) {
     console.error('Registration Error:', error);
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
+
+app.post('/check-hours', async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ status: false, message: 'User ID is required' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ status: false, message: 'User not found' });
+    }
+
+    // Dummy recorded monthly hours (Replace this with actual data from your system)
+    const recordedHours = Math.floor(Math.random() * 100); // Simulating recorded hours
+
+    const savedHours = user.hours ? parseFloat(user.hours) : null;
+
+    let responseString;
+    let redFlag = true;
+
+    if (savedHours === null) {
+      responseString = `${recordedHours}/unlimited`;
+    } else {
+      responseString = `${recordedHours}/${savedHours}`;
+      redFlag = recordedHours < savedHours;
+    }
+
+    res.status(200).json({
+      status: true,
+      hours_record: responseString,
+      red: redFlag
+    });
+
+  } catch (error) {
+    console.error('Check Hours Error:', error);
+    res.status(500).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
 
