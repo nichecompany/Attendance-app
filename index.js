@@ -109,6 +109,8 @@ app.post('/register', async (req, res) => {
   }
 });
 
+const Attendance = require('./models/Attendance'); // Example model (replace with actual database logic)
+
 app.post('/check-hours', async (req, res) => {
   try {
     const { userId } = req.body;
@@ -122,9 +124,10 @@ app.post('/check-hours', async (req, res) => {
       return res.status(404).json({ status: false, message: 'User not found' });
     }
 
-    // Dummy recorded monthly hours (Replace this with actual data from your system)
-    const recordedHours = Math.floor(Math.random() * 100); // Simulating recorded hours
+    // Fetch recorded hours from attendance database (adjust this query based on your schema)
+    const attendanceRecord = await Attendance.findOne({ userId });
 
+    let recordedHours = attendanceRecord ? attendanceRecord.monthly_hours : 0; // Use real recorded hours
     const savedHours = user.hours ? parseFloat(user.hours) : null;
 
     let responseString;
@@ -148,7 +151,6 @@ app.post('/check-hours', async (req, res) => {
     res.status(500).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
-
 
 
 // Login API
