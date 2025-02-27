@@ -659,6 +659,24 @@ app.get('/achieved-tasks', authenticateToken, async (req, res) => {
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
+// get all tasks
+app.get('/tasks-summary', authenticateToken, async (req, res) => {
+  try {
+    let achievedTasks, pendingTasks;
+    if (req.user.isAdmin) {
+      achievedTasks = await Task.find({ achievedBy: { $exists: true, $not: { $size: 0 } } }).sort({ createdAt: -1 });
+      pendingTasks = await Task.find({ achievedBy: { $size: 0 } }).sort({ createdAt: -1 });
+    } else {
+      achievedTasks = await Task.find({ assignedTo: req.user.id, 'achievedBy.userId': req.user.id }).sort({ createdAt: -1 });
+      pendingTasks = await Task.find({ assignedTo: req.user.id, achievedBy: { $not: { $elemMatch: { userId: req.user.id } } } }).sort({ createdAt: -1 });
+    }
+
+    res.status(200).json({ status: true, message: 'Tasks summary fetched successfully.', achievedTasks, pendingTasks });
+  } catch (error) {
+    console.error('Fetch Tasks Summary Error:', error);
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
 // API to get all users with total working hours of the current month
 app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
   try {
