@@ -536,7 +536,7 @@ app.post('/add-task', authenticateToken, isAdmin, async (req, res) => {
       description,
       deadline: new Date(deadline),
       createdBy: req.user.id,
-      assignedTo
+      assignedTo: assignedTo.map(id => mongoose.Types.ObjectId(id)) // Ensure ObjectId format
     });
 
     await newTask.save();
@@ -551,7 +551,7 @@ app.post('/add-task', authenticateToken, isAdmin, async (req, res) => {
 app.post('/achieve-task', authenticateToken, async (req, res) => {
   try {
     const { taskId } = req.body;
-    const userId = req.user.id;
+    const userId = mongoose.Types.ObjectId(req.user.id);
 
     const task = await Task.findById(taskId);
     if (!task) {
@@ -620,55 +620,16 @@ app.post('/add-task-note', authenticateToken, async (req, res) => {
   }
 });
 
-// 5. Fetch Pending Tasks
-app.get('/pending-tasks', authenticateToken, async (req, res) => {
-  try {
-    let tasks;
-    if (req.user.isAdmin) {
-      tasks = await Task.find({ 'achievedBy.userId': { $ne: req.user.id } }).sort({ createdAt: -1 });
-    } else {
-      tasks = await Task.find({
-        assignedTo: req.user.id,
-        achievedBy: { $not: { $elemMatch: { userId: req.user.id } } }
-      }).sort({ createdAt: -1 });
-    }
-
-    res.status(200).json({ status: true, message: 'Pending tasks fetched successfully.', tasks });
-  } catch (error) {
-    console.error('Fetch Pending Tasks Error:', error);
-    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
-  }
-});
-
-// 6. Fetch Achieved Tasks
-app.get('/achieved-tasks', authenticateToken, async (req, res) => {
-  try {
-    let tasks;
-    if (req.user.isAdmin) {
-      tasks = await Task.find({ achievedBy: { $exists: true, $not: { $size: 0 } } }).sort({ createdAt: -1 });
-    } else {
-      tasks = await Task.find({
-        assignedTo: req.user.id,
-        'achievedBy.userId': req.user.id
-      }).sort({ createdAt: -1 });
-    }
-
-    res.status(200).json({ status: true, message: 'Achieved tasks fetched successfully.', tasks });
-  } catch (error) {
-    console.error('Fetch Achieved Tasks Error:', error);
-    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
-  }
-});
-// get all tasks
+// 5. Fetch Achieved and Pending Tasks
 app.get('/tasks-summary', authenticateToken, async (req, res) => {
   try {
     let achievedTasks, pendingTasks;
     if (req.user.isAdmin) {
-      achievedTasks = await Task.find({ achievedBy: { $exists: true, $not: { $size: 0 } } }).sort({ createdAt: -1 });
-      pendingTasks = await Task.find({ achievedBy: { $size: 0 } }).sort({ createdAt: -1 });
+      achievedTasks = await Task.find({ 'achievedBy.0': { $exists: true } }).sort({ createdAt: -1 });
+      pendingTasks = await Task.find({ 'achievedBy.0': { $exists: false } }).sort({ createdAt: -1 });
     } else {
       achievedTasks = await Task.find({ assignedTo: req.user.id, 'achievedBy.userId': req.user.id }).sort({ createdAt: -1 });
-      pendingTasks = await Task.find({ assignedTo: req.user.id, achievedBy: { $not: { $elemMatch: { userId: req.user.id } } } }).sort({ createdAt: -1 });
+      pendingTasks = await Task.find({ assignedTo: req.user.id, 'achievedBy.0': { $exists: false } }).sort({ createdAt: -1 });
     }
 
     res.status(200).json({ status: true, message: 'Tasks summary fetched successfully.', achievedTasks, pendingTasks });
@@ -677,6 +638,7 @@ app.get('/tasks-summary', authenticateToken, async (req, res) => {
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
+
 // API to get all users with total working hours of the current month
 app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
   try {
