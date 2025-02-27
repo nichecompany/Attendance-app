@@ -537,8 +537,7 @@ app.post('/add-task', authenticateToken, isAdmin, async (req, res) => {
       description,
       deadline: new Date(deadline),
       createdBy: req.user.id,
-      assignedTo: assignedTo.map(id => new mongoose.Types.ObjectId(id)) // Correct usage
-
+      assignedTo: assignedTo.map(id => new mongoose.Types.ObjectId(id)) // Corrected ObjectId conversion
     });
 
     await newTask.save();
@@ -553,7 +552,7 @@ app.post('/add-task', authenticateToken, isAdmin, async (req, res) => {
 app.post('/achieve-task', authenticateToken, async (req, res) => {
   try {
     const { taskId } = req.body;
-    const userId = mongoose.Types.ObjectId(req.user.id);
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const task = await Task.findById(taskId);
     if (!task) {
@@ -640,8 +639,6 @@ app.get('/tasks-summary', authenticateToken, async (req, res) => {
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
-
-
 // API to get all users with total working hours of the current month
 app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
   try {
