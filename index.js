@@ -514,7 +514,16 @@ const taskSchema = new mongoose.Schema({
 const Task = mongoose.model('Task', taskSchema);
 
 // 1. Add Task API
-app.post('/add-task', authenticateToken, async (req, res) => {
+// Middleware to check if user is admin
+const isAdmin = (req, res, next) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ status: false, message: 'Access denied. Admins only.' });
+  }
+  next();
+};
+
+// 1. Add Task (Admin Only)
+app.post('/add-task', authenticateToken, isAdmin, async (req, res) => {
   try {
     const { taskName, description, deadline, assignedTo } = req.body;
 
@@ -531,7 +540,6 @@ app.post('/add-task', authenticateToken, async (req, res) => {
     });
 
     await newTask.save();
-
     res.status(201).json({ status: true, message: 'Task created successfully.' });
   } catch (error) {
     console.error('Add Task Error:', error);
@@ -539,7 +547,7 @@ app.post('/add-task', authenticateToken, async (req, res) => {
   }
 });
 
-// 2. Achieve Task API
+// 2. Achieve Task (Only Assigned Users)
 app.post('/achieve-task', authenticateToken, async (req, res) => {
   try {
     const { taskId } = req.body;
@@ -550,8 +558,12 @@ app.post('/achieve-task', authenticateToken, async (req, res) => {
       return res.status(200).json({ status: false, message: 'Task not found.' });
     }
 
-    if (!task.assignedTo.includes(userId)) {
+    if (!task.assignedTo.some(id => id.equals(userId))) {
       return res.status(200).json({ status: false, message: 'You are not assigned to this task.' });
+    }
+
+    if (task.achievedBy.some(entry => entry.userId.equals(userId))) {
+      return res.status(200).json({ status: false, message: 'Task already achieved.' });
     }
 
     task.achievedBy.push({ userId, achievedAt: new Date() });
@@ -564,8 +576,8 @@ app.post('/achieve-task', authenticateToken, async (req, res) => {
   }
 });
 
-// 3. Delete Task API
-app.post('/delete-task', authenticateToken, async (req, res) => {
+// 3. Delete Task (Admin Only)
+app.post('/delete-task', authenticateToken, isAdmin, async (req, res) => {
   try {
     const { taskId } = req.body;
     const task = await Task.findByIdAndDelete(taskId);
@@ -580,7 +592,7 @@ app.post('/delete-task', authenticateToken, async (req, res) => {
   }
 });
 
-// 4. Add Note to Task API
+// 4. Add Task Note (Admin or Assigned Users)
 app.post('/add-task-note', authenticateToken, async (req, res) => {
   try {
     const { taskId, note } = req.body;
@@ -594,6 +606,10 @@ app.post('/add-task-note', authenticateToken, async (req, res) => {
       return res.status(200).json({ status: false, message: 'Task not found.' });
     }
 
+    if (!req.user.isAdmin && !task.assignedTo.some(id => id.equals(req.user.id))) {
+      return res.status(403).json({ status: false, message: 'Access denied. Only assigned users or admins can add notes.' });
+    }
+
     task.notes.push({ userId: req.user.id, note, timeAdded: new Date() });
     await task.save();
 
@@ -604,12 +620,18 @@ app.post('/add-task-note', authenticateToken, async (req, res) => {
   }
 });
 
-// 5. Fetch Pending Tasks API
+// 5. Fetch Pending Tasks
 app.get('/pending-tasks', authenticateToken, async (req, res) => {
   try {
-    const tasks = await Task.find({
-      'achievedBy.userId': { $ne: req.user.id }
-    });
+    let tasks;
+    if (req.user.isAdmin) {
+      tasks = await Task.find({ 'achievedBy.userId': { $ne: req.user.id } }).sort({ createdAt: -1 });
+    } else {
+      tasks = await Task.find({
+        assignedTo: req.user.id,
+        achievedBy: { $not: { $elemMatch: { userId: req.user.id } } }
+      }).sort({ createdAt: -1 });
+    }
 
     res.status(200).json({ status: true, message: 'Pending tasks fetched successfully.', tasks });
   } catch (error) {
@@ -618,10 +640,18 @@ app.get('/pending-tasks', authenticateToken, async (req, res) => {
   }
 });
 
-// 6. Fetch Achieved Tasks API
+// 6. Fetch Achieved Tasks
 app.get('/achieved-tasks', authenticateToken, async (req, res) => {
   try {
-    const tasks = await Task.find({ 'achievedBy.userId': req.user.id });
+    let tasks;
+    if (req.user.isAdmin) {
+      tasks = await Task.find({ achievedBy: { $exists: true, $not: { $size: 0 } } }).sort({ createdAt: -1 });
+    } else {
+      tasks = await Task.find({
+        assignedTo: req.user.id,
+        'achievedBy.userId': req.user.id
+      }).sort({ createdAt: -1 });
+    }
 
     res.status(200).json({ status: true, message: 'Achieved tasks fetched successfully.', tasks });
   } catch (error) {
@@ -629,7 +659,6 @@ app.get('/achieved-tasks', authenticateToken, async (req, res) => {
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
-
 // API to get all users with total working hours of the current month
 app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
   try {
