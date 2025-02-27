@@ -626,8 +626,8 @@ app.get('/tasks-summary', authenticateToken, async (req, res) => {
   try {
     let achievedTasks, pendingTasks;
     if (req.user.isAdmin) {
-      achievedTasks = await Task.find({ 'achievedBy.0': { $exists: true } }).sort({ createdAt: -1 });
-      pendingTasks = await Task.find({ 'achievedBy.0': { $exists: false } }).sort({ createdAt: -1 });
+      achievedTasks = await Task.find({}).sort({ createdAt: -1 });
+      pendingTasks = await Task.find({}).sort({ createdAt: -1 });
     } else {
       achievedTasks = await Task.find({ assignedTo: req.user.id, 'achievedBy.userId': req.user.id }).sort({ createdAt: -1 });
       pendingTasks = await Task.find({ assignedTo: req.user.id, 'achievedBy.0': { $exists: false } }).sort({ createdAt: -1 });
