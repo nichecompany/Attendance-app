@@ -515,13 +515,13 @@ const Task = mongoose.model('Task', taskSchema);
 
 // 1. Add Task API
 
+// Middleware to check if user is admin
 const isAdmin = (req, res, next) => {
   if (!req.user || req.user.role !== 'admin') {
     return res.status(403).json({ status: false, message: 'Access denied. Admins only.' });
   }
   next();
 };
-
 
 // 1. Add Task (Admin Only)
 app.post('/add-task', authenticateToken, isAdmin, async (req, res) => {
@@ -537,7 +537,8 @@ app.post('/add-task', authenticateToken, isAdmin, async (req, res) => {
       description,
       deadline: new Date(deadline),
       createdBy: req.user.id,
-      assignedTo: assignedTo.map(id => mongoose.Types.ObjectId(id)) // Ensure ObjectId format
+      assignedTo: assignedTo.map(id => new mongoose.Types.ObjectId(id)) // Correct usage
+
     });
 
     await newTask.save();
@@ -639,6 +640,7 @@ app.get('/tasks-summary', authenticateToken, async (req, res) => {
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
+
 
 // API to get all users with total working hours of the current month
 app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
