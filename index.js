@@ -514,13 +514,14 @@ const taskSchema = new mongoose.Schema({
 const Task = mongoose.model('Task', taskSchema);
 
 // 1. Add Task API
-// Middleware to check if user is admin
+
 const isAdmin = (req, res, next) => {
-  if (!req.user.isAdmin) {
+  if (!req.user || req.user.role !== 'admin') {
     return res.status(403).json({ status: false, message: 'Access denied. Admins only.' });
   }
   next();
 };
+
 
 // 1. Add Task (Admin Only)
 app.post('/add-task', authenticateToken, isAdmin, async (req, res) => {
