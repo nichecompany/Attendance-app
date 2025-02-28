@@ -811,6 +811,88 @@ app.get('/db-status', async (req, res) => {
     });
   }
 });
+// emails auditor 
+const emailSchema = new mongoose.Schema({
+  subject_en: { type: String, required: true },
+  subject_ar: { type: String, required: true },
+  body_en: { type: String, required: true },
+  body_ar: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const Email = mongoose.model('Email', emailSchema);
+app.post('/add-email', async (req, res) => {
+  try {
+    const { subject_en, subject_ar, body_en, body_ar } = req.body;
+
+    if (!subject_en || !subject_ar || !body_en || !body_ar) {
+      return res.status(400).json({ status: false, message: 'All fields are required (subject_en, subject_ar, body_en, body_ar).' });
+    }
+
+    const newEmail = new Email({
+      subject_en,
+      subject_ar,
+      body_en,
+      body_ar
+    });
+
+    await newEmail.save();
+
+    res.status(201).json({
+      status: true,
+      message: 'Email added successfully.',
+      emailId: newEmail._id
+    });
+  } catch (error) {
+    console.error('Add Email Error:', error);
+    res.status(500).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
+app.get('/get-emails', async (req, res) => {
+  try {
+    const emails = await Email.find({}).sort({ createdAt: -1 });
+
+    const emailData = emails.map(email => ({
+      id: email._id, // Include the email ID
+      subject_en: email.subject_en,
+      subject_ar: email.subject_ar,
+      body_en: email.body_en,
+      body_ar: email.body_ar
+    }));
+
+    res.status(200).json({
+      status: true,
+      message: 'Emails retrieved successfully.',
+      emails: emailData
+    });
+  } catch (error) {
+    console.error('Get Emails Error:', error);
+    res.status(500).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
+app.post('/delete-email', async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ status: false, message: 'Email ID is required.' });
+    }
+
+    const email = await Email.findByIdAndDelete(id);
+
+    if (!email) {
+      return res.status(404).json({ status: false, message: 'Email not found.' });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: 'Email deleted successfully.'
+    });
+  } catch (error) {
+    console.error('Delete Email Error:', error);
+    res.status(500).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
 
 // Start Server
 app.listen(PORT, () => {
