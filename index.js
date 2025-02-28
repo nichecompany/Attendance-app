@@ -826,7 +826,7 @@ app.post('/add-email', async (req, res) => {
     const { subject_en, subject_ar, body_en, body_ar } = req.body;
 
     if (!subject_en || !subject_ar || !body_en || !body_ar) {
-      return res.status(400).json({ status: false, message: 'All fields are required (subject_en, subject_ar, body_en, body_ar).' });
+      return res.status(200).json({ status: false, message: 'All fields are required (subject_en, subject_ar, body_en, body_ar).' });
     }
 
     const newEmail = new Email({
@@ -867,7 +867,7 @@ app.get('/get-emails', async (req, res) => {
     });
   } catch (error) {
     console.error('Get Emails Error:', error);
-    res.status(500).json({ status: false, message: 'Server Error', error: error.message });
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
 app.post('/delete-email', async (req, res) => {
@@ -875,13 +875,13 @@ app.post('/delete-email', async (req, res) => {
     const { id } = req.body;
 
     if (!id) {
-      return res.status(400).json({ status: false, message: 'Email ID is required.' });
+      return res.status(200).json({ status: false, message: 'Email ID is required.' });
     }
 
     const email = await Email.findByIdAndDelete(id);
 
     if (!email) {
-      return res.status(404).json({ status: false, message: 'Email not found.' });
+      return res.status(200).json({ status: false, message: 'Email not found.' });
     }
 
     res.status(200).json({
@@ -890,7 +890,7 @@ app.post('/delete-email', async (req, res) => {
     });
   } catch (error) {
     console.error('Delete Email Error:', error);
-    res.status(500).json({ status: false, message: 'Server Error', error: error.message });
+    res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
 
