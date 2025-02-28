@@ -886,7 +886,7 @@ app.post('/delete-email', async (req, res) => {
 
     res.status(200).json({
       status: true,
-      message: 'Email deleted successfully.'
+      message: 'Email deleted successfully..'
     });
   } catch (error) {
     console.error('Delete Email Error:', error);
