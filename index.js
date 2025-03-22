@@ -276,7 +276,8 @@ const attendanceSchema = new mongoose.Schema({
     {
       checkIn: { type: Date },
       checkOut: { type: Date },
-      note: { type: String, default: ' ' } // Default empty string for note
+      note: { type: String, default: ' ' }, // Default empty string for note
+      hint: { type: String, default: ' ' } 
     }
   ]
 });
@@ -285,7 +286,7 @@ const Attendance = mongoose.model('Attendance', attendanceSchema);
 // Attendance API (Check-in/Check-out)
 app.post('/attendance', authenticateToken, async (req, res) => {
   try {
-    const { attendanceStatus, note } = req.body;
+    const { attendanceStatus, note ,hint} = req.body;
 
     if (!attendanceStatus || !['check-in', 'check-out'].includes(attendanceStatus.toLowerCase())) {
       return res.status(200).json({ status: false, message: 'Invalid attendance status. Use "check-in" or "check-out".' });
@@ -321,6 +322,9 @@ app.post('/attendance', authenticateToken, async (req, res) => {
       if (!note || note.trim() === '') {
         return res.status(200).json({ status: false, message: 'Note is required for check-out.' });
       }
+      if (!hint || hint.trim() === '') {
+        return res.status(200).json({ status: false, message: 'Mission Hint is required for check-out.' });
+      }
       if (attendance.records.length === 0 || attendance.records[attendance.records.length - 1].checkOut) {
         return res.status(200).json({
           status: false,
@@ -330,6 +334,7 @@ app.post('/attendance', authenticateToken, async (req, res) => {
       }
       attendance.records[attendance.records.length - 1].checkOut = currentDate;
       attendance.records[attendance.records.length - 1].note = note;
+      attendance.records[attendance.records.length - 1].hint = hint;
       await attendance.save();
 
       return res.status(200).json({
@@ -379,7 +384,8 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
             checkIn: session.checkIn,
             checkOut: session.checkOut,
             duration: hoursWorked.toFixed(2) + ' hours',
-            note: session.note || ' '
+            note: session.note || ' ',
+            hint: session.hint || ' '
           });
         }
       });
@@ -456,10 +462,10 @@ const verifyAdmin = (req, res, next) => {
 // 
 app.post('/add-attendance-session', authenticateToken, async (req, res) => {
   try {
-    const { checkIn, checkOut, note } = req.body;
+    const { checkIn, checkOut, note,hint } = req.body;
 
     // Validate input fields
-    if (!checkIn || !checkOut || !note) {
+    if (!checkIn || !checkOut || !note||!hint) {
       return res.status(200).json({ status: false, message: 'Check-in, check-out, and note are required.' });
     }
 
@@ -477,7 +483,8 @@ app.post('/add-attendance-session', authenticateToken, async (req, res) => {
     attendanceRecord.records.push({
       checkIn: new Date(checkIn),
       checkOut: new Date(checkOut),
-      note: `Manually by user: ${note}`
+      note: `##: ${note}`,
+      hint:`${hint}`
     });
 
     await attendanceRecord.save();
