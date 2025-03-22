@@ -655,7 +655,8 @@ app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
     const year = currentDate.getFullYear();
 
     // Fetch all users
-    const users = await User.find({}, '_id name email');
+    const users = await User.find();
+
 
     // Initialize result array
     const userSummaries = [];
