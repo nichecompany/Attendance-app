@@ -773,6 +773,46 @@ app.post('/change-role', authenticateToken, verifyAdmin, async (req, res) => {
   }
 });
 
+app.post('/update-user', authenticateToken, verifyAdmin, async (req, res) => {
+  try {
+    const { userId, name, email, role, position, department, hours } = req.body;
+
+    if (!userId) {
+      return res.status(200).json({ status: false, message: 'User ID is required.' });
+    }
+
+    // Fetch the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ status: false, message: 'User not found.' });
+    }
+
+    // Prevent self-role change (optional)
+    if (userId === req.user.id && role && role !== user.role) {
+      return res.status(403).json({ status: false, message: 'You cannot change your own role.' });
+    }
+
+    // Update fields if provided
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (role && ['admin', 'user'].includes(role)) user.role = role;
+    if (position) user.position = position;
+    if (department) user.department = department;
+    if (hours !== undefined) user.hours = hours;
+
+    await user.save();
+
+    res.status(200).json({
+      status: true,
+      message: `User ${user.name} updated successfully.`,
+    });
+
+  } catch (error) {
+    console.error('Update User Error:', error);
+    res.status(500).json({ status: false, message: 'Server Error', error: error.message });
+  }
+});
+
 
 //! testing the server
 app.get('/test', (req, res) => {
