@@ -686,6 +686,10 @@ app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        position:user.position,
+        department:user.department,
+        hours:user.hours,
+        role:user.role,
         totalWorkingHours: totalHours.toFixed(2) // Round to 2 decimal places
       });
     }
@@ -772,6 +776,7 @@ app.post('/change-role', authenticateToken, verifyAdmin, async (req, res) => {
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
+
 
 app.post('/update-user', authenticateToken, verifyAdmin, async (req, res) => {
   try {
