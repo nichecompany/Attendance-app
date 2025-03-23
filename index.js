@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const moment = require('moment-timezone');
 require('dotenv').config();
 
 
@@ -123,7 +124,8 @@ app.post('/check-hours', async (req, res) => {
     }
 
     // Get the current month and year
-    const currentDate = new Date();
+    const currentDate = moment.tz('Africa/Cairo').toDate()
+;
     const month = currentDate.getMonth(); // 0-based index (0 = January)
     const year = currentDate.getFullYear();
 
@@ -131,8 +133,8 @@ app.post('/check-hours', async (req, res) => {
     const attendanceRecords = await Attendance.find({
       userId,
       date: {
-        $gte: new Date(year, month, 1),  // Start of the month
-        $lt: new Date(year, month + 1, 1) // Start of next month
+        $gte: moment.tz({ year, month: month - 1, day: 1 }, 'Africa/Cairo').toDate(),
+        $lt: moment.tz({ year, month, day: 1 }, 'Africa/Cairo').toDate()
       }
     });
 
@@ -293,8 +295,8 @@ app.post('/attendance', authenticateToken, async (req, res) => {
     }
 
     const userId = req.user.id;
-    const currentDate = new Date();
-    const dateOnly = new Date(currentDate.toDateString());
+    const currentDate = moment.tz('Africa/Cairo').toDate();
+    const dateOnly = moment.tz(currentDate, 'Africa/Cairo').startOf('day').toDate();
 
     let attendance = await Attendance.findOne({ userId, date: dateOnly });
 
@@ -307,7 +309,7 @@ app.post('/attendance', authenticateToken, async (req, res) => {
         return res.status(200).json({
           status: false,
           message: 'You are still checked-in. Please check out before checking in again.',
-          time: currentDate.toISOString()
+          time: moment.tz(currentDate, 'Africa/Cairo').format()
         });
       }
       attendance.records.push({ checkIn: currentDate });
@@ -316,7 +318,8 @@ app.post('/attendance', authenticateToken, async (req, res) => {
       return res.status(200).json({
         status: true,
         message: 'Check-in recorded successfully.',
-        time: currentDate.toISOString()
+        time: moment.tz(currentDate, 'Africa/Cairo').format()
+
       });
     } else {
       if (!note || note.trim() === '') {
@@ -329,7 +332,8 @@ app.post('/attendance', authenticateToken, async (req, res) => {
         return res.status(200).json({
           status: false,
           message: 'You must check-in before checking out.',
-          time: currentDate.toISOString()
+          time: moment.tz(currentDate, 'Africa/Cairo').format()
+
         });
       }
       attendance.records[attendance.records.length - 1].checkOut = currentDate;
@@ -340,7 +344,8 @@ app.post('/attendance', authenticateToken, async (req, res) => {
       return res.status(200).json({
         status: true,
         message: 'Check-out recorded successfully.',
-        time: currentDate.toISOString()
+        time: moment.tz(currentDate, 'Africa/Cairo').format()
+
       });
     }
   } catch (error) {
@@ -360,8 +365,8 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
     const attendanceRecords = await Attendance.find({
       userId,
       date: {
-        $gte: new Date(year, month - 1, 1),
-        $lt: new Date(year, month, 1)
+        $gte: moment.tz({ year, month: month - 1, day: 1 }, 'Africa/Cairo').toDate(),
+        $lt: moment.tz({ year, month, day: 1 }, 'Africa/Cairo').toDate()
       }
     });
 
@@ -372,7 +377,8 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
     attendanceRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     attendanceRecords.forEach(record => {
-      const dateStr = record.date.toISOString().split('T')[0]; // Format date as YYYY-MM-DD
+      const dateStr = moment.tz(record.date, 'Africa/Cairo').format('YYYY-MM-DD');
+// Format date as YYYY-MM-DD
       detailedRecords[dateStr] = [];
 
       record.records.forEach(session => {
@@ -381,8 +387,8 @@ app.post('/attendance-summary', authenticateToken, async (req, res) => {
           totalHours += hoursWorked;
 
           detailedRecords[dateStr].push({
-            checkIn: session.checkIn,
-            checkOut: session.checkOut,
+            checkIn: moment.tz(session.checkIn, 'Africa/Cairo').toDate(),
+            checkOut: moment.tz(session.checkOut, 'Africa/Cairo').toDate(),
             duration: hoursWorked.toFixed(2) + ' hours',
             note: session.note || ' ',
             hint: session.hint || ' '
@@ -419,8 +425,9 @@ app.post('/delete-attendance-session', authenticateToken, async (req, res) => {
     // Find the attendance record containing the specified session
     const attendanceRecord = await Attendance.findOne({
       userId,
-      'records.checkIn': new Date(checkIn),
-      'records.checkOut': new Date(checkOut)
+  'records.checkIn': moment.tz(checkIn, 'Africa/Cairo').toDate(),
+'records.checkOut': moment.tz(checkOut, 'Africa/Cairo').toDate()
+
     });
 
     if (!attendanceRecord) {
@@ -429,7 +436,7 @@ app.post('/delete-attendance-session', authenticateToken, async (req, res) => {
 
     // Filter out the session to be deleted
     attendanceRecord.records = attendanceRecord.records.filter(session => {
-      return !(session.checkIn.getTime() === new Date(checkIn).getTime() && session.checkOut.getTime() === new Date(checkOut).getTime());
+      return !(session.checkIn.getTime() === moment.tz(checkIn, 'Africa/Cairo').toDate().getTime() && session.checkOut.getTime() === moment.tz(checkOut, 'Africa/Cairo').toDate().getTime());
     });
 
     // If no records are left for the day, delete the entire attendance document
@@ -470,7 +477,7 @@ app.post('/add-attendance-session', authenticateToken, async (req, res) => {
     }
 
     const userId = req.user.id;
-    const dateOnly = new Date(new Date(checkIn).toDateString());
+    const dateOnly = moment.tz(checkIn, 'Africa/Cairo').startOf('day').toDate();
 
     // Find or create attendance record for the given date
     let attendanceRecord = await Attendance.findOne({ userId, date: dateOnly });
@@ -481,8 +488,8 @@ app.post('/add-attendance-session', authenticateToken, async (req, res) => {
 
     // Add the manually created session
     attendanceRecord.records.push({
-      checkIn: new Date(checkIn),
-      checkOut: new Date(checkOut),
+      checkIn: moment.tz(checkIn, 'Africa/Cairo').toDate(),
+      checkOut: moment.tz(checkOut, 'Africa/Cairo').toDate(),
       note: `##: ${note}`,
       hint:`${hint}`
     });
@@ -542,7 +549,7 @@ app.post('/add-task', authenticateToken, isAdmin, async (req, res) => {
     const newTask = new Task({
       taskName,
       description,
-      deadline: new Date(deadline),
+      deadline: moment.tz(deadline, 'Africa/Cairo').toDate(),
       createdBy: req.user.id,
       assignedTo: assignedTo.map(id => new mongoose.Types.ObjectId(id)) // Corrected ObjectId conversion
     });
@@ -574,7 +581,8 @@ app.post('/achieve-task', authenticateToken, async (req, res) => {
       return res.status(200).json({ status: false, message: 'Task already achieved.' });
     }
 
-    task.achievedBy.push({ userId, achievedAt: new Date() });
+    task.achievedBy.push({ userId, achievedAt: moment.tz('Africa/Cairo').toDate()
+ });
     await task.save();
 
     res.status(200).json({ status: true, message: 'Task marked as achieved.' });
@@ -618,7 +626,8 @@ app.post('/add-task-note', authenticateToken, async (req, res) => {
       return res.status(403).json({ status: false, message: 'Access denied. Only assigned users or admins can add notes.' });
     }
 
-    task.notes.push({ userId: req.user.id, note, timeAdded: new Date() });
+    task.notes.push({ userId: req.user.id, note, timeAdded: moment.tz('Africa/Cairo').toDate()
+ });
     await task.save();
 
     res.status(200).json({ status: true, message: 'Note added to task successfully.' });
@@ -650,7 +659,7 @@ app.get('/tasks-summary', authenticateToken, async (req, res) => {
 app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
   try {
     // Get current month and year
-    const currentDate = new Date();
+    const currentDate = moment.tz('Africa/Cairo').toDate();
     const month = currentDate.getMonth(); // 0-based index (0 = January)
     const year = currentDate.getFullYear();
 
@@ -666,8 +675,8 @@ app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
       const attendanceRecords = await Attendance.find({
         userId: user._id,
         date: {
-          $gte: new Date(year, month, 1),
-          $lt: new Date(year, month + 1, 1)
+          $gte: moment.tz({ year, month: month - 1, day: 1 }, 'Africa/Cairo').toDate(),
+          $lt: moment.tz({ year, month, day: 1 }, 'Africa/Cairo').toDate()
         }
       });
 

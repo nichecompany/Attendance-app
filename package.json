@@ -21,6 +21,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
+    "moment-timezone": "^0.5.47",
     "mongoose": "^8.10.1",
     "parse-server": "^7.4.0"
   },
