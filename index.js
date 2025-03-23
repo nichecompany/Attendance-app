@@ -123,18 +123,17 @@ app.post('/check-hours', async (req, res) => {
       return res.status(404).json({ status: false, message: 'User not found' });
     }
 
-    // Get the current month and year
-    const currentDate = moment.tz('Africa/Cairo').toDate()
-;
-    const month = currentDate.getMonth(); // 0-based index (0 = January)
-    const year = currentDate.getFullYear();
+    // Get current month start and end in Africa/Cairo timezone
+    const currentDate = moment.tz('Africa/Cairo');
+    const startOfMonth = currentDate.clone().startOf('month').toDate();
+    const endOfMonth = currentDate.clone().endOf('month').toDate();
 
     // Fetch attendance records for the current month
     const attendanceRecords = await Attendance.find({
       userId,
       date: {
-        $gte: moment.tz({ year, month: month - 1, day: 1 }, 'Africa/Cairo').toDate(),
-        $lt: moment.tz({ year, month, day: 1 }, 'Africa/Cairo').toDate()
+        $gte: startOfMonth,
+        $lte: endOfMonth
       }
     });
 
@@ -144,7 +143,7 @@ app.post('/check-hours', async (req, res) => {
     attendanceRecords.forEach(record => {
       record.records.forEach(session => {
         if (session.checkIn && session.checkOut) {
-          const hoursWorked = (new Date(session.checkOut) - new Date(session.checkIn)) / (1000 * 60 * 60); // Convert ms to hours
+          const hoursWorked = (new Date(session.checkOut) - new Date(session.checkIn)) / (1000 * 60 * 60); // ms to hours
           totalRecordedHours += hoursWorked;
         }
       });
@@ -173,7 +172,6 @@ app.post('/check-hours', async (req, res) => {
     res.status(500).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
-
 
 
 // Login API
