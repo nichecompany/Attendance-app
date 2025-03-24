@@ -670,11 +670,14 @@ app.get('/users', authenticateToken, verifyAdmin, async (req, res) => {
 
     for (const user of users) {
       // Fetch user's attendance for the current month
+      const startOfMonth = moment.tz('Africa/Cairo').startOf('month').toDate();
+      const endOfMonth = moment.tz('Africa/Cairo').endOf('month').toDate();
+
       const attendanceRecords = await Attendance.find({
         userId: user._id,
         date: {
-          $gte: moment.tz({ year, month: month - 1, day: 1 }, 'Africa/Cairo').toDate(),
-          $lt: moment.tz({ year, month, day: 1 }, 'Africa/Cairo').toDate()
+          $gte: startOfMonth,
+          $lte: endOfMonth
         }
       });
 
