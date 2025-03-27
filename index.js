@@ -351,6 +351,48 @@ app.post('/attendance', authenticateToken, async (req, res) => {
     res.status(200).json({ status: false, message: 'Server Error', error: error.message });
   }
 });
+app.get('/daily-status', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const today = moment.tz('Africa/Cairo').startOf('day').toDate();
+
+    const attendance = await Attendance.findOne({ userId, date: today });
+
+    if (!attendance || attendance.records.length === 0) {
+      return res.status(200).json({
+        status: "not-checked-in",
+        checkInTime: null,
+        workingHoursToday: 0
+      });
+    }
+
+    let workingHoursToday = 0;
+    let activeCheckIn = null;
+
+    attendance.records.forEach(record => {
+      if (record.checkIn && record.checkOut) {
+        workingHoursToday += (new Date(record.checkOut) - new Date(record.checkIn)) / (1000 * 60 * 60); // hours
+      } else if (record.checkIn && !record.checkOut) {
+        activeCheckIn = record.checkIn;
+        workingHoursToday += (new Date() - new Date(record.checkIn)) / (1000 * 60 * 60); // still working
+      }
+    });
+
+    return res.status(200).json({
+      status: activeCheckIn ? "checked-in" : "checked-out",
+      checkInTime: activeCheckIn ? moment.tz(activeCheckIn, 'Africa/Cairo').toISOString() : null,
+      workingHoursToday: workingHoursToday.toFixed(2)
+    });
+  } catch (error) {
+    console.error('Daily Status Error:', error);
+    res.status(500).json({
+      status: "error",
+      message: 'Server Error',
+      error: error.message
+    });
+  }
+});
+
 // API to Get Attendance by User ID for Month and Year
 app.post('/attendance-summary', authenticateToken, async (req, res) => {
   try {
